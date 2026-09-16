@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# ML artifacts
+mlruns/
+mlartifacts/
+models/*.pkl
+models/*.json
+data/raw/
+data/processed/
+
+# Node
+node_modules/
+frontend/dist/
+
+# OS and editors
+.DS_Store
+.vscode/
+.idea/
