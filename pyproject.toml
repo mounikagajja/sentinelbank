@@ -1,0 +1,29 @@
+[project]
+name = "sentinelbank"
+version = "0.1.0"
+description = "Real-time fraud detection and an agentic banking assistant"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "psycopg[binary]>=3.1",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "faker>=26.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.5",
+    "pytest>=8.2",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests", "ml/tests", "assistant/tests"]
