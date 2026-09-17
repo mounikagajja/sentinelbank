@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 from sqlalchemy import text
 
 from backend.app.db.session import engine
@@ -36,6 +37,9 @@ FEATURE_COLUMNS = [
     "count_24h",
     "sum_24h",
     "amount_vs_prev_mean",
+    "category_is_new",
+    "hour_is_unusual",
+    "count_24h_vs_daily_avg",
 ]
 TARGET = "is_fraud"
 ID_COLUMNS = ["id", "account_id", "occurred_at", "pattern"]
@@ -102,6 +106,19 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
 
     prev_mean = by_account["amount"].transform(lambda s: s.expanding().mean().shift(1))
     df["amount_vs_prev_mean"] = (df["amount"] / prev_mean).fillna(1.0)
+
+    seen_before = by_account.apply(
+        lambda g: g["merchant_category"].duplicated(keep="first"), include_groups=False
+    )
+    df["category_is_new"] = (~seen_before).astype(int)
+
+    hour_seen = by_account.apply(lambda g: g["hour"].duplicated(keep="first"), include_groups=False)
+    df["hour_is_unusual"] = (~hour_seen).astype(int)
+
+    row_number = by_account.cumcount()
+    days_elapsed = (df["occurred_at"] - by_account["occurred_at"].transform("min")).dt.days + 1
+    daily_avg = (row_number / days_elapsed).replace(0, np.nan)
+    df["count_24h_vs_daily_avg"] = (df["count_24h"] / daily_avg).fillna(1.0)
 
     df[TARGET] = df[TARGET].astype(int)
     return df[ID_COLUMNS + FEATURE_COLUMNS + [TARGET]]
