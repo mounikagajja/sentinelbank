@@ -37,7 +37,8 @@ FEATURE_COLUMNS = [
     "count_24h",
     "sum_24h",
     "amount_vs_prev_mean",
-    "category_is_new",
+    "category_share_prev",
+    "amount_vs_category_mean",
     "hour_is_unusual",
     "count_24h_vs_daily_avg",
 ]
@@ -107,10 +108,14 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     prev_mean = by_account["amount"].transform(lambda s: s.expanding().mean().shift(1))
     df["amount_vs_prev_mean"] = (df["amount"] / prev_mean).fillna(1.0)
 
-    seen_before = by_account.apply(
-        lambda g: g["merchant_category"].duplicated(keep="first"), include_groups=False
+    prior_rows = by_account.cumcount()
+    prior_same_category = df.groupby(["account_id", "merchant_category"]).cumcount()
+    df["category_share_prev"] = (prior_same_category / prior_rows.replace(0, np.nan)).fillna(0.0)
+
+    category_prev_mean = df.groupby(["account_id", "merchant_category"])["amount"].transform(
+        lambda s: s.expanding().mean().shift(1)
     )
-    df["category_is_new"] = (~seen_before).astype(int)
+    df["amount_vs_category_mean"] = (df["amount"] / category_prev_mean).fillna(1.0)
 
     hour_seen = by_account.apply(lambda g: g["hour"].duplicated(keep="first"), include_groups=False)
     df["hour_is_unusual"] = (~hour_seen).astype(int)
