@@ -48,6 +48,7 @@ class Transaction(Base):
     country: Mapped[str] = mapped_column(String(2))
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     is_fraud: Mapped[bool] = mapped_column(Boolean, default=False)
+    pattern: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
     account: Mapped["Account"] = relationship(back_populates="transactions")
     fraud_flag: Mapped["FraudFlag | None"] = relationship(back_populates="transaction")
