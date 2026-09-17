@@ -299,6 +299,7 @@ def subtle_takeover(
 
 
 PATTERNS = [card_testing, impossible_travel, night_high_value, atm_drain, subtle_takeover]
+PATTERN_WEIGHTS = [1, 4, 3, 1, 3]
 
 
 def main() -> None:
@@ -375,7 +376,8 @@ def main() -> None:
         while fraud_count < target:
             acc = rng.choice(accounts)
             day_start = start + timedelta(days=rng.randint(0, args.days - 1))
-            fraud.extend(rng.choice(PATTERNS)(acc, day_start, profiles[acc.customer_id], rng))
+            pattern = rng.choices(PATTERNS, weights=PATTERN_WEIGHTS)[0]
+            fraud.extend(pattern(acc, day_start, profiles[acc.customer_id], rng))
             fraud_count = sum(1 for t in fraud if t.is_fraud)
 
         db.add_all(normal + fraud)

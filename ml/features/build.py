@@ -7,8 +7,15 @@ from backend.app.db.session import engine
 
 CHANNELS = ["pos", "online", "atm"]
 CATEGORIES = [
-    "grocery", "restaurant", "fuel", "retail", "online",
-    "travel", "utilities", "electronics", "cash",
+    "grocery",
+    "restaurant",
+    "fuel",
+    "retail",
+    "online",
+    "travel",
+    "utilities",
+    "electronics",
+    "cash",
 ]
 TYPES = ["purchase", "withdrawal", "transfer"]
 
@@ -31,11 +38,11 @@ FEATURE_COLUMNS = [
     "amount_vs_prev_mean",
 ]
 TARGET = "is_fraud"
-ID_COLUMNS = ["id", "account_id", "occurred_at"]
+ID_COLUMNS = ["id", "account_id", "occurred_at", "pattern"]
 
 QUERY = text("""
     SELECT t.id, t.account_id, t.amount, t.transaction_type, t.channel,
-           t.merchant_category, t.country, t.occurred_at, t.is_fraud,
+           t.merchant_category, t.country, t.occurred_at, t.is_fraud, t.pattern,
            c.home_country
     FROM transactions t
     JOIN accounts a ON a.id = t.account_id
@@ -69,11 +76,15 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     df["is_night"] = df["hour"].between(0, 5).astype(int)
     df["is_weekend"] = (df["day_of_week"] >= 5).astype(int)
 
-    df["channel_code"] = df["channel"].map({c: i for i, c in enumerate(CHANNELS)}).fillna(-1).astype(int)
+    df["channel_code"] = (
+        df["channel"].map({c: i for i, c in enumerate(CHANNELS)}).fillna(-1).astype(int)
+    )
     df["category_code"] = (
         df["merchant_category"].map({c: i for i, c in enumerate(CATEGORIES)}).fillna(-1).astype(int)
     )
-    df["type_code"] = df["transaction_type"].map({t: i for i, t in enumerate(TYPES)}).fillna(-1).astype(int)
+    df["type_code"] = (
+        df["transaction_type"].map({t: i for i, t in enumerate(TYPES)}).fillna(-1).astype(int)
+    )
     df["is_foreign"] = (df["country"] != df["home_country"]).astype(int)
 
     by_account = df.groupby("account_id", group_keys=False)
