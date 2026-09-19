@@ -36,6 +36,9 @@ extend-exclude = ["backend/alembic"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
 
+[tool.ruff.lint.per-file-ignores]
+"ml/features/online.py" = ["E501"]
+
 [tool.pytest.ini_options]
 testpaths = ["backend/tests", "ml/tests", "assistant/tests"]
 pythonpath = ["."]
