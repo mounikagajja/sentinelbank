@@ -1,7 +1,7 @@
 from pathlib import Path
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sqlalchemy import text
 
 from backend.app.db.session import engine
@@ -117,7 +117,7 @@ def build_features(df: pd.DataFrame) -> pd.DataFrame:
     )
     df["amount_vs_category_mean"] = (df["amount"] / category_prev_mean).fillna(1.0)
 
-    hour_seen = by_account.apply(lambda g: g["hour"].duplicated(keep="first"), include_groups=False)
+    hour_seen = df.groupby(["account_id", "hour"]).cumcount() > 0
     df["hour_is_unusual"] = (~hour_seen).astype(int)
 
     row_number = by_account.cumcount()

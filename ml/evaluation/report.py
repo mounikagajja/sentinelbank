@@ -23,7 +23,9 @@ def threshold_sweep(y: pd.Series, proba: np.ndarray) -> pd.DataFrame:
         precision = tp / (tp + fp) if tp + fp else 0.0
         recall = tp / (tp + fn) if tp + fn else 0.0
         f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
-        rows.append({"threshold": t, "flagged": tp + fp, "precision": precision, "recall": recall, "f1": f1})
+        rows.append(
+            {"threshold": t, "flagged": tp + fp, "precision": precision, "recall": recall, "f1": f1}
+        )
     return pd.DataFrame(rows)
 
 
@@ -55,7 +57,8 @@ def main() -> None:
     lines = [
         "# Fraud model evaluation",
         "",
-        f"Model: `{MODEL_PATH}`. Test set: last 15 days, {len(test)} rows, {int(y_test.sum())} fraud.",
+        f"Model: `{MODEL_PATH}`.",
+        f"Test set: last 15 days, {len(test)} rows, {int(y_test.sum())} fraud.",
         "",
         f"PR-AUC: {average_precision_score(y_test, proba):.4f}",
         f"ROC-AUC: {roc_auc_score(y_test, proba):.4f}",

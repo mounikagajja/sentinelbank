@@ -1,6 +1,7 @@
 # Fraud model evaluation
 
-Model: `models\fraud_xgb.json`. Test set: last 15 days, 8666 rows, 176 fraud.
+Model: `models\fraud_xgb.json`.
+Test set: last 15 days, 8666 rows, 176 fraud.
 
 PR-AUC: 0.8259
 ROC-AUC: 0.9882
