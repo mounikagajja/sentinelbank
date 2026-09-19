@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     fraud_threshold: float = Field(default=0.7, alias="FRAUD_THRESHOLD")
     model_path: str = Field(default="models/fraud_xgb.json", alias="MODEL_PATH")
 
+    jwt_secret: str = Field(alias="JWT_SECRET")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_minutes: int = Field(default=60, alias="JWT_EXPIRE_MINUTES")
+
     @computed_field
     @property
     def database_url(self) -> str:

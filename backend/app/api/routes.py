@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from backend.app.core.security import AnalystUser, CurrentUser
 from backend.app.db.session import get_db
 from backend.app.models import Account, Customer, FraudFlag, Transaction
 from backend.app.schemas.models import (
@@ -26,7 +27,7 @@ FLAG_STATUSES = ("open", "confirmed", "dismissed")
 
 
 @router.get("/customers/{customer_id}", response_model=CustomerOut, tags=["customers"])
-def get_customer(customer_id: int, db: DbSession) -> Customer:
+def get_customer(customer_id: int, db: DbSession, user: CurrentUser) -> Customer:
     customer = db.get(Customer, customer_id)
     if customer is None:
         raise HTTPException(status_code=404, detail="Customer not found")
@@ -36,14 +37,14 @@ def get_customer(customer_id: int, db: DbSession) -> Customer:
 @router.get(
     "/customers/{customer_id}/accounts", response_model=list[AccountOut], tags=["customers"]
 )
-def list_customer_accounts(customer_id: int, db: DbSession) -> list[Account]:
+def list_customer_accounts(customer_id: int, db: DbSession, user: CurrentUser) -> list[Account]:
     if db.get(Customer, customer_id) is None:
         raise HTTPException(status_code=404, detail="Customer not found")
     return list(db.scalars(select(Account).where(Account.customer_id == customer_id)))
 
 
 @router.get("/accounts/{account_id}", response_model=AccountOut, tags=["accounts"])
-def get_account(account_id: int, db: DbSession) -> Account:
+def get_account(account_id: int, db: DbSession, user: CurrentUser) -> Account:
     account = db.get(Account, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -56,6 +57,7 @@ def get_account(account_id: int, db: DbSession) -> Account:
 def list_account_transactions(
     account_id: int,
     db: DbSession,
+    user: CurrentUser,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> TransactionPage:
@@ -80,7 +82,7 @@ def list_account_transactions(
 
 
 @router.get("/transactions/{transaction_id}", response_model=TransactionOut, tags=["transactions"])
-def get_transaction(transaction_id: int, db: DbSession) -> Transaction:
+def get_transaction(transaction_id: int, db: DbSession, user: CurrentUser) -> Transaction:
     transaction = db.get(Transaction, transaction_id)
     if transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
@@ -90,6 +92,7 @@ def get_transaction(transaction_id: int, db: DbSession) -> Transaction:
 @router.get("/flags", response_model=FlaggedPage, tags=["flags"])
 def list_flags(
     db: DbSession,
+    user: CurrentUser,
     status: Annotated[str | None, Query()] = None,
     min_score: Annotated[float, Query(ge=0.0, le=1.0)] = 0.0,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
@@ -130,7 +133,7 @@ def list_flags(
 
 
 @router.get("/flags/{flag_id}", response_model=FlaggedTransactionOut, tags=["flags"])
-def get_flag(flag_id: int, db: DbSession) -> FlaggedTransactionOut:
+def get_flag(flag_id: int, db: DbSession, user: CurrentUser) -> FlaggedTransactionOut:
     flag = db.get(FraudFlag, flag_id)
     if flag is None:
         raise HTTPException(status_code=404, detail="Flag not found")
@@ -142,7 +145,9 @@ def get_flag(flag_id: int, db: DbSession) -> FlaggedTransactionOut:
 
 
 @router.patch("/accounts/{account_id}/status", response_model=AccountOut, tags=["accounts"])
-def update_account_status(account_id: int, payload: AccountStatusUpdate, db: DbSession) -> Account:
+def update_account_status(
+    account_id: int, payload: AccountStatusUpdate, db: DbSession, user: AnalystUser
+) -> Account:
     account = db.get(Account, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="Account not found")
@@ -155,7 +160,9 @@ def update_account_status(account_id: int, payload: AccountStatusUpdate, db: DbS
 
 
 @router.patch("/flags/{flag_id}/status", response_model=FraudFlagOut, tags=["flags"])
-def update_flag_status(flag_id: int, payload: FlagStatusUpdate, db: DbSession) -> FraudFlag:
+def update_flag_status(
+    flag_id: int, payload: FlagStatusUpdate, db: DbSession, user: AnalystUser
+) -> FraudFlag:
     flag = db.get(FraudFlag, flag_id)
     if flag is None:
         raise HTTPException(status_code=404, detail="Flag not found")

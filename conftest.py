@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from backend.app.core.security import User, get_current_user, require_analyst
 from backend.app.db.session import engine, get_db
 from backend.app.main import app
 from backend.app.models import Account, Customer, FraudFlag, Transaction
@@ -26,6 +27,24 @@ def db() -> Generator[Session, None, None]:
 
 @pytest.fixture
 def client(db):
+    analyst = User(username="analyst", role="analyst")
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: analyst
+    app.dependency_overrides[require_analyst] = lambda: analyst
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def viewer_client(db):
+    app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_current_user] = lambda: User(username="viewer", role="viewer")
+    yield TestClient(app)
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def anon_client(db):
     app.dependency_overrides[get_db] = lambda: db
     yield TestClient(app)
     app.dependency_overrides.clear()
