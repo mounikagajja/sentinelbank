@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     redpanda_broker: str = Field(default="localhost:19092", alias="REDPANDA_BROKER")
     transactions_topic: str = Field(default="transactions", alias="TRANSACTIONS_TOPIC")
 
+    consumer_group: str = Field(default="fraud-scorer", alias="CONSUMER_GROUP")
+    fraud_threshold: float = Field(default=0.7, alias="FRAUD_THRESHOLD")
+    model_path: str = Field(default="models/fraud_xgb.json", alias="MODEL_PATH")
+
     @computed_field
     @property
     def database_url(self) -> str:
