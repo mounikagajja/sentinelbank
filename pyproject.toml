@@ -11,12 +11,15 @@ dependencies = [
     "pydantic-settings>=2.3",
     "faker>=26.0",
     "confluent-kafka>=2.5",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
 ]
 
 [dependency-groups]
 dev = [
     "ruff>=0.5",
     "pytest>=8.2",
+    "httpx2>=0.28",
 ]
 ml = [
     "pandas>=2.2",
