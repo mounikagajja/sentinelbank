@@ -1,3 +1,5 @@
+"""Consume transactions from Redpanda, score them, and write fraud flags to Postgres."""
+
 import argparse
 import json
 import signal
@@ -60,6 +62,22 @@ def score_message(db, model: XGBClassifier, payload: dict) -> tuple[float, bool]
     return probability, probability >= settings.fraud_threshold
 
 
+def write_flag(db, transaction_id: int, probability: float) -> bool:
+    """Insert a fraud flag if one does not already exist. Returns True if inserted."""
+    existing = db.scalar(select(FraudFlag).where(FraudFlag.transaction_id == transaction_id))
+    if existing is not None:
+        return False
+    db.add(
+        FraudFlag(
+            transaction_id=transaction_id,
+            fraud_score=probability,
+            model_version=MODEL_VERSION,
+        )
+    )
+    db.flush()
+    return True
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Score transactions from Redpanda")
     parser.add_argument("--from-beginning", action="store_true")
@@ -98,22 +116,9 @@ def main() -> None:
 
             with SessionLocal() as db:
                 probability, is_flagged = score_message(db, model, payload)
-                if is_flagged:
-                    existing = db.scalar(
-                        select(FraudFlag).where(
-                            FraudFlag.transaction_id == payload["transaction_id"]
-                        )
-                    )
-                    if existing is None:
-                        db.add(
-                            FraudFlag(
-                                transaction_id=payload["transaction_id"],
-                                fraud_score=probability,
-                                model_version=MODEL_VERSION,
-                            )
-                        )
-                        flagged += 1
-                    db.commit()
+                if is_flagged and write_flag(db, payload["transaction_id"], probability):
+                    flagged += 1
+                db.commit()
 
             consumer.commit(message)
             processed += 1

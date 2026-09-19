@@ -40,5 +40,5 @@ select = ["E", "F", "I", "B", "UP"]
 "ml/features/online.py" = ["E501"]
 
 [tool.pytest.ini_options]
-testpaths = ["backend/tests", "ml/tests", "assistant/tests"]
+testpaths = ["backend/tests", "ml/tests", "assistant/tests", "streaming/tests"]
 pythonpath = ["."]
