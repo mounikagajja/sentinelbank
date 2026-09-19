@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,9 +9,11 @@ from backend.app.db.session import get_db
 from backend.app.models import Account, Customer, FraudFlag, Transaction
 from backend.app.schemas.models import (
     AccountOut,
+    AccountStatusUpdate,
     CustomerOut,
     FlaggedPage,
     FlaggedTransactionOut,
+    FlagStatusUpdate,
     FraudFlagOut,
     TransactionOut,
     TransactionPage,
@@ -136,3 +139,30 @@ def get_flag(flag_id: int, db: DbSession) -> FlaggedTransactionOut:
         flag=FraudFlagOut.model_validate(flag),
         transaction=TransactionOut.model_validate(transaction),
     )
+
+
+@router.patch("/accounts/{account_id}/status", response_model=AccountOut, tags=["accounts"])
+def update_account_status(account_id: int, payload: AccountStatusUpdate, db: DbSession) -> Account:
+    account = db.get(Account, account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if account.status == payload.status:
+        raise HTTPException(status_code=409, detail=f"Account is already {payload.status}")
+
+    account.status = payload.status
+    db.flush()
+    return account
+
+
+@router.patch("/flags/{flag_id}/status", response_model=FraudFlagOut, tags=["flags"])
+def update_flag_status(flag_id: int, payload: FlagStatusUpdate, db: DbSession) -> FraudFlag:
+    flag = db.get(FraudFlag, flag_id)
+    if flag is None:
+        raise HTTPException(status_code=404, detail="Flag not found")
+    if flag.status != "open":
+        raise HTTPException(status_code=409, detail=f"Flag was already {flag.status}")
+
+    flag.status = payload.status
+    flag.reviewed_at = datetime.now(UTC)
+    db.flush()
+    return flag

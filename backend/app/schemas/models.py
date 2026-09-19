@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -75,3 +76,13 @@ class FlaggedPage(Page):
 class PaginationParams(BaseModel):
     limit: int = Field(default=50, ge=1, le=200)
     offset: int = Field(default=0, ge=0)
+
+
+class AccountStatusUpdate(BaseModel):
+    status: Literal["active", "frozen"]
+    reason: str = Field(min_length=3, max_length=200)
+
+
+class FlagStatusUpdate(BaseModel):
+    status: Literal["confirmed", "dismissed"]
+    note: str | None = Field(default=None, max_length=500)
