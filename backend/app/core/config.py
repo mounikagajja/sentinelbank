@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     postgres_host: str = Field(default="localhost", alias="POSTGRES_HOST")
     postgres_port: int = Field(default=5434, alias="POSTGRES_PORT")
 
+    redpanda_broker: str = Field(default="localhost:19092", alias="REDPANDA_BROKER")
+    transactions_topic: str = Field(default="transactions", alias="TRANSACTIONS_TOPIC")
+
     @computed_field
     @property
     def database_url(self) -> str:
