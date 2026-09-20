@@ -54,3 +54,5 @@ select = ["E", "F", "I", "B", "UP"]
 [tool.pytest.ini_options]
 testpaths = ["backend/tests", "ml/tests", "assistant/tests", "streaming/tests"]
 pythonpath = ["."]
+markers = ["live: hits a real LLM, needs an API key"]
+
