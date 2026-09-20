@@ -86,3 +86,19 @@ class AccountStatusUpdate(BaseModel):
 class FlagStatusUpdate(BaseModel):
     status: Literal["confirmed", "dismissed"]
     note: str | None = Field(default=None, max_length=500)
+
+
+class FeatureContribution(BaseModel):
+    feature: str
+    value: float
+    contribution: float
+    direction: str
+
+
+class FlagExplanation(BaseModel):
+    flag_id: int
+    transaction_id: int
+    fraud_score: float
+    model_version: str
+    baseline_score: float
+    top_contributions: list[FeatureContribution]

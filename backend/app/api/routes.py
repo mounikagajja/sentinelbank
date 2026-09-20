@@ -12,6 +12,7 @@ from backend.app.schemas.models import (
     AccountOut,
     AccountStatusUpdate,
     CustomerOut,
+    FlagExplanation,
     FlaggedPage,
     FlaggedTransactionOut,
     FlagStatusUpdate,
@@ -19,6 +20,7 @@ from backend.app.schemas.models import (
     TransactionOut,
     TransactionPage,
 )
+from backend.app.services.explain import explain_transaction
 
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
@@ -173,3 +175,20 @@ def update_flag_status(
     flag.reviewed_at = datetime.now(UTC)
     db.flush()
     return flag
+
+
+@router.get("/flags/{flag_id}/explain", response_model=FlagExplanation, tags=["flags"])
+def explain_flag(flag_id: int, db: DbSession, user: CurrentUser) -> FlagExplanation:
+    flag = db.get(FraudFlag, flag_id)
+    if flag is None:
+        raise HTTPException(status_code=404, detail="Flag not found")
+
+    _, baseline, contributions = explain_transaction(db, flag.transaction_id)
+    return FlagExplanation(
+        flag_id=flag.id,
+        transaction_id=flag.transaction_id,
+        fraud_score=flag.fraud_score,
+        model_version=flag.model_version,
+        baseline_score=baseline,
+        top_contributions=contributions,
+    )

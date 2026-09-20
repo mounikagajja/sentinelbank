@@ -179,6 +179,30 @@ def get_transactions_around(transaction_id: int, client: Client, window_hours: i
     return "\n".join(lines)
 
 
+@tool
+def explain_flag(flag_id: int, client: Client) -> str:
+    """Show which features drove the fraud score for a flag.
+
+    Use this to explain why the model flagged something, rather than guessing.
+    """
+    try:
+        data = client.get(f"/flags/{flag_id}/explain")
+    except ApiError as exc:
+        return f"Error: {exc}"
+
+    lines = [
+        f"Flag {data['flag_id']} on transaction {data['transaction_id']} scored "
+        f"{data['fraud_score']:.4f}. The model's starting point for any transaction is "
+        f"{data['baseline_score']:.3f} (log-odds). What moved the score most:"
+    ]
+    for item in data["top_contributions"]:
+        lines.append(
+            f"- {item['feature']} was {item['value']:.4g}, which {item['direction']} "
+            f"(weight {item['contribution']:+.3f})"
+        )
+    return "\n".join(lines)
+
+
 READ_TOOLS = [
     get_account,
     list_recent_transactions,
@@ -186,6 +210,7 @@ READ_TOOLS = [
     get_transactions_around,
     list_open_flags,
     get_flag,
+    explain_flag,
 ]
 WRITE_TOOLS = [freeze_account, unfreeze_account, review_flag]
 ALL_TOOLS = READ_TOOLS + WRITE_TOOLS
