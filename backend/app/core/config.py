@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
     jwt_expire_minutes: int = Field(default=60, alias="JWT_EXPIRE_MINUTES")
 
+    llm_provider: str = Field(default="groq", alias="LLM_PROVIDER")
+    groq_api_key: str = Field(default="", alias="GROQ_API_KEY")
+    groq_model: str = Field(default="openai/gpt-oss-120b", alias="GROQ_MODEL")
+    ollama_model: str = Field(default="llama3.1:8b", alias="OLLAMA_MODEL")
+    ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
+    api_base_url: str = Field(default="http://localhost:8000", alias="API_BASE_URL")
+
     @computed_field
     @property
     def database_url(self) -> str:
