@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from langchain_core.tools import InjectedToolArg, tool
@@ -24,8 +25,8 @@ def get_account(account_id: int, client: Client) -> str:
 
 @tool
 def list_recent_transactions(account_id: int, client: Client, limit: int = 10) -> str:
-    """List the most recent transactions on an account, newest first. 
-    
+    """List the most recent transactions on an account, newest first.
+
     Use to spot unusual activity.
     """
     try:
@@ -137,7 +138,55 @@ def review_flag(flag_id: int, outcome: str, client: Client, note: str | None = N
     return f"Flag {flag['id']} is now {flag['status']}, reviewed at {flag['reviewed_at']}."
 
 
-READ_TOOLS = [get_account, list_recent_transactions, get_transaction, list_open_flags, get_flag]
+@tool
+def get_transactions_around(transaction_id: int, client: Client, window_hours: int = 24) -> str:
+    """Show what else happened on the same account shortly before and after a transaction.
+
+    Use this when judging whether a flagged transaction is part of a suspicious burst.
+    """
+    try:
+        target = client.get(f"/transactions/{transaction_id}")
+        page = client.get(f"/accounts/{target['account_id']}/transactions", params={"limit": 200})
+    except ApiError as exc:
+        return f"Error: {exc}"
+
+    center = datetime.fromisoformat(target["occurred_at"].replace("Z", "+00:00"))
+    window = timedelta(hours=window_hours)
+    nearby = [
+        txn
+        for txn in page["items"]
+        if abs(datetime.fromisoformat(txn["occurred_at"].replace("Z", "+00:00")) - center) <= window
+    ]
+    nearby.sort(key=lambda t: t["occurred_at"])
+
+    if len(nearby) <= 1:
+        return (
+            f"Transaction {transaction_id} is the only activity on account "
+            f"{target['account_id']} within {window_hours} hours."
+        )
+
+    lines = [
+        f"{len(nearby)} transactions on account {target['account_id']} within "
+        f"{window_hours} hours of transaction {transaction_id}:"
+    ]
+    for txn in nearby:
+        marker = " <-- the one you asked about" if txn["id"] == transaction_id else ""
+        lines.append(
+            f"- {txn['occurred_at']}: {txn['amount']} at {txn['merchant_name']} "
+            f"({txn['merchant_category']}, {txn['channel']}) in {txn['city']}, "
+            f"{txn['country']}{marker}"
+        )
+    return "\n".join(lines)
+
+
+READ_TOOLS = [
+    get_account,
+    list_recent_transactions,
+    get_transaction,
+    get_transactions_around,
+    list_open_flags,
+    get_flag,
+]
 WRITE_TOOLS = [freeze_account, unfreeze_account, review_flag]
 ALL_TOOLS = READ_TOOLS + WRITE_TOOLS
 TOOLS_BY_NAME = {t.name: t for t in ALL_TOOLS}
