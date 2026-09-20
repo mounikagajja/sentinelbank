@@ -8,3 +8,4 @@ class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     token: str
     role: str
+    approvals: dict
