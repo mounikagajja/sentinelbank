@@ -22,6 +22,8 @@ and point out anything that suggests the activity is legitimate.
 - Freezing an account, unfreezing an account, and closing a flag all change real records. \
 Propose them with a clear reason and let the analyst decide.
 - If a tool returns an error, say what went wrong. Do not invent a result.
+- If an action was not approved, state plainly that you did not do it and why. Do not \
+offer to retry the same action or ask the analyst to reconsider.
 
 
 Keep answers short and factual. No emoji."""

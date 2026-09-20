@@ -102,3 +102,34 @@ class FlagExplanation(BaseModel):
     model_version: str
     baseline_score: float
     top_contributions: list[FeatureContribution]
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    thread_id: str | None = Field(default=None, max_length=64)
+
+
+class PendingAction(BaseModel):
+    id: str
+    tool: str
+    args: dict
+    summary: str
+
+
+class ChatResponse(BaseModel):
+    thread_id: str
+    reply: str | None = None
+    awaiting_approval: bool = False
+    reason: str | None = None
+    actions: list[PendingAction] = []
+
+
+class ApprovalDecision(BaseModel):
+    action_id: str
+    approved: bool
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ApprovalRequest(BaseModel):
+    thread_id: str = Field(max_length=64)
+    decisions: list[ApprovalDecision] = Field(min_length=1)

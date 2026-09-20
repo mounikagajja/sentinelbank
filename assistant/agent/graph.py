@@ -1,5 +1,6 @@
+from functools import lru_cache
+
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
@@ -101,9 +102,15 @@ def should_continue(state: AgentState) -> str:
 
 
 def build_graph(checkpointer=None, model=None):
+    if checkpointer is None:
+        from langgraph.checkpoint.memory import MemorySaver
+
+        checkpointer = MemorySaver()
+
     builder = StateGraph(AgentState)
     builder.add_node(
-        "agent", (lambda s: {"messages": [model.invoke(s["messages"])]}) if model else call_model
+        "agent",
+        (lambda s: {"messages": [model.invoke(s["messages"])]}) if model else call_model,
     )
     builder.add_node("approve", approve_actions)
     builder.add_node("tools", call_tools)
@@ -111,15 +118,28 @@ def build_graph(checkpointer=None, model=None):
     builder.add_conditional_edges("agent", should_continue, {"approve": "approve", END: END})
     builder.add_edge("approve", "tools")
     builder.add_edge("tools", "agent")
-    return builder.compile(checkpointer=checkpointer or MemorySaver())
+    return builder.compile(checkpointer=checkpointer)
 
 
-GRAPH = build_graph()
+@lru_cache
+def get_graph():
+    """Graph backed by Postgres so conversations survive a restart."""
+    from langgraph.checkpoint.postgres import PostgresSaver
+    from psycopg_pool import ConnectionPool
+
+    from backend.app.core.config import get_settings
+
+    settings = get_settings()
+    url = settings.database_url.replace("postgresql+psycopg://", "postgresql://")
+    pool = ConnectionPool(url, min_size=1, max_size=5, kwargs={"autocommit": True})
+    checkpointer = PostgresSaver(pool)
+    checkpointer.setup()
+    return build_graph(checkpointer=checkpointer)
 
 
 def start(question: str, token: str, role: str = "analyst", thread_id: str = "cli") -> dict:
     """Run a turn. Returns either a final answer or a pending approval request."""
-    return GRAPH.invoke(
+    return get_graph().invoke(
         {"messages": [HumanMessage(content=question)], "token": token, "role": role},
         config={"configurable": {"thread_id": thread_id}},
     )
@@ -129,7 +149,7 @@ def resume(decisions: dict, thread_id: str = "cli") -> dict:
     """Continue a paused run. decisions maps tool_call_id to {approved: bool, note: str}."""
     from langgraph.types import Command
 
-    return GRAPH.invoke(
+    return get_graph().invoke(
         Command(resume=decisions), config={"configurable": {"thread_id": thread_id}}
     )
 
