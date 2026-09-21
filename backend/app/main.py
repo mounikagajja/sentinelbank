@@ -7,6 +7,7 @@ from sqlalchemy import text
 from backend.app.api.assistant import router as assistant_router
 from backend.app.api.auth import router as auth_router
 from backend.app.api.routes import router
+from backend.app.api.stream import router as stream_router
 from backend.app.core.config import get_settings
 from backend.app.db.session import engine
 
@@ -39,6 +40,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(router, prefix="/api/v1")
 app.include_router(assistant_router, prefix="/api/v1")
+app.include_router(stream_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["system"])

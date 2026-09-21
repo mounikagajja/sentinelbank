@@ -1,10 +1,12 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import FlagQueue from "./pages/FlagQueue";
-import FlagDetail from "./pages/FlagDetail";
+
 import Layout from "./components/Layout";
 import { AuthProvider, useAuth } from "./lib/auth";
-import Login from "./pages/Login";
 import Assistant from "./pages/Assistant";
+import FlagDetail from "./pages/FlagDetail";
+import FlagQueue from "./pages/FlagQueue";
+import LiveFeed from "./pages/LiveFeed";
+import Login from "./pages/Login";
 
 function Shell() {
   const { user, loading } = useAuth();
@@ -22,6 +24,7 @@ function Shell() {
       <Route element={<Layout />}>
         <Route path="/flags" element={<FlagQueue />} />
         <Route path="/flags/:flagId" element={<FlagDetail />} />
+        <Route path="/live" element={<LiveFeed />} />
         <Route path="/assistant" element={<Assistant />} />
         <Route path="*" element={<Navigate to="/flags" replace />} />
       </Route>

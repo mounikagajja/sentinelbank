@@ -1,4 +1,4 @@
-"""Consume transactions from Redpanda, score them, and write fraud flags to Postgres."""
+"""Consume transactions from Redpanda, score them, write flags, and publish every score."""
 
 import argparse
 import json
@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 
 import numpy as np
-from confluent_kafka import Consumer, KafkaError
+from confluent_kafka import Consumer, KafkaError, Producer
 from sqlalchemy import select, text
 from xgboost import XGBClassifier
 
@@ -78,6 +78,24 @@ def write_flag(db, transaction_id: int, probability: float) -> bool:
     return True
 
 
+def score_event(payload: dict, probability: float, is_flagged: bool) -> bytes:
+    event = {
+        "transaction_id": payload["transaction_id"],
+        "account_id": payload["account_id"],
+        "amount": payload["amount"],
+        "merchant_name": payload["merchant_name"],
+        "merchant_category": payload["merchant_category"],
+        "channel": payload["channel"],
+        "city": payload["city"],
+        "country": payload["country"],
+        "occurred_at": payload["occurred_at"],
+        "score": round(probability, 4),
+        "flagged": is_flagged,
+        "model_version": MODEL_VERSION,
+    }
+    return json.dumps(event).encode("utf-8")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Score transactions from Redpanda")
     parser.add_argument("--from-beginning", action="store_true")
@@ -97,6 +115,7 @@ def main() -> None:
         }
     )
     consumer.subscribe([settings.transactions_topic])
+    producer = Producer({"bootstrap.servers": settings.redpanda_broker, "linger.ms": 20})
 
     processed = 0
     flagged = 0
@@ -104,6 +123,7 @@ def main() -> None:
     try:
         while running:
             message = consumer.poll(1.0)
+            producer.poll(0)
             if message is None:
                 continue
             if message.error():
@@ -120,6 +140,11 @@ def main() -> None:
                     flagged += 1
                 db.commit()
 
+            producer.produce(
+                topic=settings.scores_topic,
+                key=str(payload["account_id"]),
+                value=score_event(payload, probability, is_flagged),
+            )
             consumer.commit(message)
             processed += 1
 
@@ -133,6 +158,7 @@ def main() -> None:
             if args.max_messages and processed >= args.max_messages:
                 break
     finally:
+        producer.flush(5)
         consumer.close()
         print(f"processed: {processed}  flagged: {flagged}")
 

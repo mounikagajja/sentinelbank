@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
     api_base_url: str = Field(default="http://localhost:8000", alias="API_BASE_URL")
 
+    scores_topic: str = Field(default="scores", alias="SCORES_TOPIC")
+
     @computed_field
     @property
     def database_url(self) -> str:

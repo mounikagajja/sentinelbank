@@ -19,6 +19,9 @@ export default function Layout() {
             <NavLink to="/flags" className={linkClass}>
               Flag queue
             </NavLink>
+            <NavLink to="/live" className={linkClass}>
+              Live
+            </NavLink>
             <NavLink to="/assistant" className={linkClass}>
               Assistant
             </NavLink>
