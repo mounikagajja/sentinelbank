@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-
+import FlagQueue from "./pages/FlagQueue";
 import Layout from "./components/Layout";
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
@@ -22,7 +22,7 @@ function Shell() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route path="/flags" element={<Placeholder title="Flag queue" />} />
+        <Route path="/flags" element={<FlagQueue />} />
         <Route path="/assistant" element={<Placeholder title="Assistant" />} />
         <Route path="*" element={<Navigate to="/flags" replace />} />
       </Route>
