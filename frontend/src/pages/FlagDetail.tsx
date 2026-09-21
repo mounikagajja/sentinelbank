@@ -121,7 +121,10 @@ export default function FlagDetail() {
                   <div className="flex justify-between text-sm">
                     <span className="text-slate-300">{c.feature}</span>
                     <span className="font-mono text-slate-400">
-                      {c.value.toPrecision(4)} · {c.contribution > 0 ? "+" : ""}
+                      {c.feature.includes("category") && Number.isInteger(c.value) && c.value >= 0
+                        ? t.merchant_category
+                        : c.value.toPrecision(4)}{" "}
+                      · {c.contribution > 0 ? "+" : ""}
                       {c.contribution.toFixed(3)}
                     </span>
                   </div>
