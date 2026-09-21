@@ -4,10 +4,7 @@ import FlagDetail from "./pages/FlagDetail";
 import Layout from "./components/Layout";
 import { AuthProvider, useAuth } from "./lib/auth";
 import Login from "./pages/Login";
-
-function Placeholder({ title }: { title: string }) {
-  return <h2 className="text-lg font-medium">{title}</h2>;
-}
+import Assistant from "./pages/Assistant";
 
 function Shell() {
   const { user, loading } = useAuth();
@@ -25,7 +22,7 @@ function Shell() {
       <Route element={<Layout />}>
         <Route path="/flags" element={<FlagQueue />} />
         <Route path="/flags/:flagId" element={<FlagDetail />} />
-        <Route path="/assistant" element={<Placeholder title="Assistant" />} />
+        <Route path="/assistant" element={<Assistant />} />
         <Route path="*" element={<Navigate to="/flags" replace />} />
       </Route>
     </Routes>

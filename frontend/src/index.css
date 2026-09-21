@@ -7,3 +7,11 @@
 body {
   @apply bg-slate-950 text-slate-100 antialiased;
 }
+
+.markdown p { margin: 0.5rem 0; }
+.markdown ul { list-style: disc; padding-left: 1.25rem; margin: 0.5rem 0; }
+.markdown ol { list-style: decimal; padding-left: 1.25rem; margin: 0.5rem 0; }
+.markdown strong { color: #f1f5f9; font-weight: 600; }
+.markdown table { width: 100%; border-collapse: collapse; margin: 0.5rem 0; font-size: 0.8rem; }
+.markdown th, .markdown td { border: 1px solid #334155; padding: 0.35rem 0.5rem; text-align: left; }
+.markdown th { background: #0f172a; color: #94a3b8; font-weight: 500; }
