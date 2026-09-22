@@ -16,19 +16,30 @@ Real-time fraud detection on banking transactions, with an AI assistant that inv
 ## Architecture
 
 ```mermaid
-flowchart LR
-    P[Producer] -->|transactions| R[(Redpanda)]
-    R --> C[Scoring consumer]
-    C -->|features, flags| DB[(Postgres)]
-    C -->|scores| R
-    API[FastAPI] --> DB
-    R -->|scores via SSE| API
-    AG[LangGraph agent] -->|HTTP with JWT| API
-    API --> AG
-    UI[React console] --> API
-    PR[Prometheus] --> API
-    PR --> C
-    G[Grafana] --> PR
+flowchart TD
+    subgraph ingest[Streaming]
+        P[Producer] -->|transactions| R[(Redpanda)]
+        R --> C[Scoring consumer]
+        C -->|scores| R
+    end
+
+    subgraph app[Application]
+        API[FastAPI]
+        AG[LangGraph agent]
+        UI[React console]
+        AG -->|HTTP with JWT| API
+        UI --> API
+    end
+
+    subgraph ops[Monitoring]
+        PR[Prometheus] --> G[Grafana]
+    end
+
+    C -->|flags| DB[(Postgres)]
+    API --> DB
+    R -->|live scores via SSE| API
+    API -.->|scrape| PR
+    C -.->|scrape| PR
 ```
 
 The agent runs inside the API process but calls the API over HTTP like any other client. It never gets a database session, so every action it takes goes through the same auth, validation, and conflict rules as a human using the console.
