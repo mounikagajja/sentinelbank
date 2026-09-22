@@ -9,13 +9,12 @@ import type {
 } from "./types";
 
 const TOKEN_KEY = "sentinelbank.token";
-
 export class ApiError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
+  status: number;
+
+  constructor(message: string, status: number) {
     super(message);
+    this.status = status;
   }
 }
 
