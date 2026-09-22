@@ -68,8 +68,11 @@ export async function login(username: string, password: string): Promise<void> {
     body,
   });
 
+  if (response.status === 401) {
+    throw new ApiError("Incorrect username or password", 401);
+  }
   if (!response.ok) {
-    throw new ApiError("Incorrect username or password", response.status);
+    throw new ApiError(`Sign in failed: the server returned ${response.status}`, response.status);
   }
 
   const data = (await response.json()) as { access_token: string };

@@ -98,7 +98,6 @@ services:
         condition: service_healthy
       topics:
         condition: service_completed_successfully
-    
 
   producer:
     <<: *backend
@@ -137,7 +136,28 @@ services:
       - api
       - consumer
 
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: sentinelbank-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/sentinelbank.json
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+  
+
 volumes:
   postgres_data:
   redpanda_data:
   prometheus_data:
+  grafana_data:

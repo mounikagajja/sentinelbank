@@ -22,7 +22,9 @@ MODEL_VERSION = "xgb-v1"
 METRICS_PORT = 9100
 
 SCORED = Counter("sentinelbank_transactions_scored_total", "Transactions scored")
-FLAGGED = Counter("sentinelbank_flags_raised_total", "Fraud flags written to the database")
+FLAGGED = Counter(
+    "sentinelbank_flags_raised_total", "Transactions scored at or above the flag threshold"
+)
 ERRORS = Counter("sentinelbank_scoring_errors_total", "Messages that failed to score")
 LATENCY = Histogram(
     "sentinelbank_scoring_seconds",
@@ -154,9 +156,10 @@ def main() -> None:
             try:
                 with SessionLocal() as db:
                     probability, is_flagged = score_message(db, model, payload)
-                    if is_flagged and write_flag(db, payload["transaction_id"], probability):
-                        flagged += 1
+                    if is_flagged:
                         FLAGGED.inc()
+                        if write_flag(db, payload["transaction_id"], probability):
+                            flagged += 1
                     db.commit()
             except Exception as exc:
                 ERRORS.inc()
