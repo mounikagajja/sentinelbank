@@ -91,11 +91,14 @@ services:
     <<: *backend
     container_name: sentinelbank-consumer
     command: ["python", "-m", "streaming.consumer.score"]
+    ports:
+      - "9100:9100"
     depends_on:
       api:
         condition: service_healthy
       topics:
         condition: service_completed_successfully
+    
 
   producer:
     <<: *backend
@@ -118,6 +121,23 @@ services:
       api:
         condition: service_healthy
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: sentinelbank-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    depends_on:
+      - api
+      - consumer
+
 volumes:
   postgres_data:
   redpanda_data:
+  prometheus_data:

@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, HTTPException
 
 from assistant.agent.graph import get_graph, pending_approval, resume, start
+from backend.app.core.metrics import ASSISTANT_DECISIONS, ASSISTANT_TURNS
 from backend.app.core.security import CurrentUser, create_access_token
 from backend.app.schemas.models import (
     ApprovalRequest,
@@ -17,12 +18,14 @@ router = APIRouter(prefix="/assistant", tags=["assistant"])
 def to_response(thread_id: str, result: dict) -> ChatResponse:
     request = pending_approval(result)
     if request is not None:
+        ASSISTANT_TURNS.labels(outcome="awaiting_approval").inc()
         return ChatResponse(
             thread_id=thread_id,
             awaiting_approval=True,
             reason=request["reason"],
             actions=[PendingAction(**action) for action in request["actions"]],
         )
+    ASSISTANT_TURNS.labels(outcome="answered").inc()
     return ChatResponse(thread_id=thread_id, reply=result["messages"][-1].content)
 
 
@@ -36,6 +39,7 @@ def chat(payload: ChatRequest, user: CurrentUser) -> ChatResponse:
     try:
         result = start(payload.message, token=token, role=user.role, thread_id=thread_id)
     except Exception as exc:
+        ASSISTANT_TURNS.labels(outcome="error").inc()
         raise HTTPException(status_code=502, detail=f"Assistant failed: {exc}") from exc
     return to_response(thread_id, result)
 
@@ -52,12 +56,12 @@ def approve(payload: ApprovalRequest, user: CurrentUser) -> ChatResponse:
             status_code=409, detail="This conversation has no action waiting for approval"
         )
 
-    pending_ids = {
-        call["id"]
+    pending_calls = {
+        call["id"]: call["name"]
         for message in snapshot.values.get("messages", [])[-1:]
         for call in getattr(message, "tool_calls", [])
     }
-    unknown = {d.action_id for d in payload.decisions} - pending_ids
+    unknown = {d.action_id for d in payload.decisions} - set(pending_calls)
     if unknown:
         raise HTTPException(
             status_code=422, detail=f"These actions are not pending: {sorted(unknown)}"
@@ -68,11 +72,17 @@ def approve(payload: ApprovalRequest, user: CurrentUser) -> ChatResponse:
             status_code=403, detail="Approving these actions requires the analyst role"
         )
 
+    for d in payload.decisions:
+        ASSISTANT_DECISIONS.labels(
+            tool=pending_calls[d.action_id], decision="approved" if d.approved else "declined"
+        ).inc()
+
     decisions = {
         d.action_id: {"approved": d.approved, "note": d.note or ""} for d in payload.decisions
     }
     try:
         result = resume(decisions, thread_id=payload.thread_id)
     except Exception as exc:
+        ASSISTANT_TURNS.labels(outcome="error").inc()
         raise HTTPException(status_code=502, detail=f"Assistant failed: {exc}") from exc
     return to_response(payload.thread_id, result)

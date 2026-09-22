@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 from sqlalchemy import text
 
 from backend.app.api.assistant import router as assistant_router
@@ -41,6 +42,10 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(router, prefix="/api/v1")
 app.include_router(assistant_router, prefix="/api/v1")
 app.include_router(stream_router, prefix="/api/v1")
+
+Instrumentator(excluded_handlers=["/metrics", "/health", "/health/db"]).instrument(app).expose(
+    app, endpoint="/metrics", include_in_schema=False
+)
 
 
 @app.get("/health", tags=["system"])

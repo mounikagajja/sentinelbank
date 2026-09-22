@@ -1,13 +1,13 @@
-"""Consume transactions from Redpanda, score them, write flags, and publish every score."""
-
 import argparse
 import json
 import signal
 import sys
+import time
 from datetime import datetime
 
 import numpy as np
 from confluent_kafka import Consumer, KafkaError, Producer
+from prometheus_client import Counter, Histogram, start_http_server
 from sqlalchemy import select, text
 from xgboost import XGBClassifier
 
@@ -19,6 +19,21 @@ from ml.features.online import compute_features
 
 settings = get_settings()
 MODEL_VERSION = "xgb-v1"
+METRICS_PORT = 9100
+
+SCORED = Counter("sentinelbank_transactions_scored_total", "Transactions scored")
+FLAGGED = Counter("sentinelbank_flags_raised_total", "Fraud flags written to the database")
+ERRORS = Counter("sentinelbank_scoring_errors_total", "Messages that failed to score")
+LATENCY = Histogram(
+    "sentinelbank_scoring_seconds",
+    "Time to compute features, score, and write one transaction",
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
+)
+SCORES = Histogram(
+    "sentinelbank_fraud_score",
+    "Distribution of fraud scores produced by the model",
+    buckets=(0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1.0),
+)
 
 HOME_COUNTRY_SQL = text("""
     SELECT c.home_country
@@ -105,6 +120,7 @@ def main() -> None:
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
 
+    start_http_server(METRICS_PORT)
     model = load_model()
     consumer = Consumer(
         {
@@ -133,12 +149,24 @@ def main() -> None:
                 continue
 
             payload = json.loads(message.value().decode("utf-8"))
+            started = time.perf_counter()
 
-            with SessionLocal() as db:
-                probability, is_flagged = score_message(db, model, payload)
-                if is_flagged and write_flag(db, payload["transaction_id"], probability):
-                    flagged += 1
-                db.commit()
+            try:
+                with SessionLocal() as db:
+                    probability, is_flagged = score_message(db, model, payload)
+                    if is_flagged and write_flag(db, payload["transaction_id"], probability):
+                        flagged += 1
+                        FLAGGED.inc()
+                    db.commit()
+            except Exception as exc:
+                ERRORS.inc()
+                print(f"failed to score {payload.get('transaction_id')}: {exc}", file=sys.stderr)
+                consumer.commit(message)
+                continue
+
+            LATENCY.observe(time.perf_counter() - started)
+            SCORES.observe(probability)
+            SCORED.inc()
 
             producer.produce(
                 topic=settings.scores_topic,
