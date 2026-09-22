@@ -1,3 +1,17 @@
+x-backend: &backend
+  image: sentinelbank-backend
+  build: .
+  env_file: .env
+  environment:
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    REDPANDA_BROKER: redpanda:9092
+    API_BASE_URL: http://localhost:8000
+    MODEL_PATH: /app/models/fraud_xgb.json
+  volumes:
+    - ./models:/app/models:ro
+  restart: unless-stopped
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -41,6 +55,68 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  topics:
+    image: redpandadata/redpanda:v24.2.7
+    container_name: sentinelbank-topics
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - >
+        rpk topic create transactions scores --partitions 3 --replicas 1
+        -X brokers=redpanda:9092 || true
+    restart: "no"
+
+  api:
+    <<: *backend
+    container_name: sentinelbank-api
+    command: >
+      sh -c "alembic upgrade head &&
+             uvicorn backend.app.main:app --host 0.0.0.0 --port 8000"
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  consumer:
+    <<: *backend
+    container_name: sentinelbank-consumer
+    command: ["python", "-m", "streaming.consumer.score"]
+    depends_on:
+      api:
+        condition: service_healthy
+      topics:
+        condition: service_completed_successfully
+
+  producer:
+    <<: *backend
+    container_name: sentinelbank-producer
+    command: ["python", "-m", "streaming.producer.produce", "--limit", "500", "--rate", "5", "--since", "2026-09-01"]
+    depends_on:
+      consumer:
+        condition: service_started
+    restart: "no"
+    profiles: ["demo"]
+
+  frontend:
+    image: sentinelbank-frontend
+    build: ./frontend
+    container_name: sentinelbank-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      api:
+        condition: service_healthy
 
 volumes:
   postgres_data:
